@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {quoteTotal,canConvert,reserve,dispatch,canTransition,hasRole,canCancel} from '../src/domain.js';
+test('quotation total applies discount before tax',()=>assert.equal(quoteTotal([{quantity:2,unit_price:100,discount_pct:10,tax_pct:18}]),212.4));
+test('draft and rejected quotations cannot convert',()=>{assert.equal(canConvert('DRAFT',false),false);assert.equal(canConvert('REJECTED',false),false)});
+test('accepted quotation converts only once',()=>{assert.equal(canConvert('ACCEPTED',false),true);assert.equal(canConvert('ACCEPTED',true),false)});
+test('reservation reduces available stock and preserves physical quantity',()=>assert.deepEqual(reserve(100,20,30),{physical:100,reserved:50,available:50}));
+test('reservation cannot exceed available inventory',()=>assert.throws(()=>reserve(100,90,20),/Insufficient/));
+test('dispatch consumes physical and reserved stock equally',()=>assert.deepEqual(dispatch(100,60,60),{physical:40,reserved:0,available:40}));
+test('quote transitions reject repeated or invalid status changes',()=>{assert.equal(canTransition('DRAFT','SENT'),true);assert.equal(canTransition('SENT','ACCEPTED'),true);assert.equal(canTransition('ACCEPTED','SENT'),false)});
+test('sales users are blocked from admin-only actions',()=>{assert.equal(hasRole({role:'SALES'},['ADMIN']),false);assert.equal(hasRole({role:'ADMIN'},['ADMIN']),true);assert.equal(hasRole(null,['ADMIN']),false)});
+test('only unshipped orders can be cancelled',()=>{assert.equal(canCancel('PENDING'),true);assert.equal(canCancel('CONFIRMED'),true);assert.equal(canCancel('DISPATCHED'),false)});
